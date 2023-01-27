@@ -1,0 +1,59 @@
+// Initialize the game
+var game = new Phaser.Game(800, 600, Phaser.AUTO, 'game', { preload: preload, create: create, update: update });
+
+// Variables for the player and coin
+var player;
+var coin;
+var score = 0;
+
+// Load assets
+function preload() {
+    game.load.image('player', 'player.png');
+    game.load.image('coin', 'coin.png');
+}
+
+// Create the game world
+function create() {
+    // Add the player to the game
+    player = game.add.sprite(50, 50, 'player');
+
+    // Enable player physics
+    game.physics.arcade.enable(player);
+
+    // Add the coin to the game
+    coin = game.add.sprite(500, 200, 'coin');
+
+    // Enable coin physics
+    game.physics.arcade.enable(coin);
+
+    // Create the score text
+    scoreText = game.add.text(16, 16, 'score: 0', { fontSize: '32px', fill: '#000' });
+}
+
+// Update the game state
+function update() {
+    // Move the player using the arrow keys
+    player.body.velocity.x = 0;
+    player.body.velocity.y = 0;
+    if (game.input.keyboard.isDown(Phaser.Keyboard.LEFT)) {
+        player.body.velocity.x = -150;
+    }
+    else if (game.input.keyboard.isDown(Phaser.Keyboard.RIGHT)) {
+        player.body.velocity.x = 150;
+    }
+    else if (game.input.keyboard.isDown(Phaser.Keyboard.UP)) {
+        player.body.velocity.y = -150;
+    }
+    else if (game.input.keyboard.isDown(Phaser.Keyboard.DOWN)) {
+        player.body.velocity.y = 150;
+    }
+
+    // Check if the player and coin overlap
+    if (Phaser.Rectangle.intersects(player.getBounds(), coin.getBounds())) {
+        // If they do, increase the score and move the coin to a new random location
+        score += 1;
+        scoreText.text = 'score: ' + score;
+        coin.x = game.rnd.integerInRange(50, 750);
+        coin.y = game.rnd.integerInRange(50, 550);
+    }
+}
