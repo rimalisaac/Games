@@ -1,0 +1,48 @@
+import pygame
+
+# Initialize pygame
+pygame.init()
+
+# Set the window size
+size = (700, 500)
+screen = pygame.display.set_mode(size)
+
+# Set the title of the window
+pygame.display.set_caption("Ball Game")
+
+# Create a red ball
+ball = pygame.image.load("ball.png")
+
+# Set the initial position of the ball
+ball_rect = ball.get_rect()
+
+# Set the speed of the ball
+ball_speed = [5, 5]
+
+# Run the game loop
+running = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    # Move the ball
+    ball_rect = ball_rect.move(ball_speed)
+
+    # Check for screen boundaries
+    if ball_rect.left < 0 or ball_rect.right > size[0]:
+        ball_speed[0] = -ball_speed[0]
+    if ball_rect.top < 0 or ball_rect.bottom > size[1]:
+        ball_speed[1] = -ball_speed[1]
+
+    # Clear the screen
+    screen.fill((255, 255, 255))
+
+    # Draw the ball
+    screen.blit(ball, ball_rect)
+
+    # Update the screen
+    pygame.display.flip()
+
+# Exit pygame
+pygame.quit()
