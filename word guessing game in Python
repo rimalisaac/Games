@@ -1,0 +1,33 @@
+import random
+
+# Create a list of words
+words = ['python', 'java', 'ruby', 'javascript', 'php']
+
+# Pick a random word from the list
+word = random.choice(words)
+
+# Create a string with underscores for each letter in the word
+current_word = '_' * len(word)
+
+# Keep track of the number of guesses
+num_guesses = 0
+
+# Ask the user to guess a letter in the word
+while True:
+    print("Current word:", current_word)
+    guess = input("Guess a letter: ")
+    num_guesses += 1
+    
+    # Check if the guess is correct
+    if guess in word:
+        print("Correct!")
+        # Replace the underscores with the guessed letter
+        current_word = ''.join([guess if letter == guess else current_word[i] for i, letter in enumerate(word)])
+        
+        # Check if the user has guessed all the letters
+        if current_word == word:
+            print("Congratulations! You guessed the word in", num_guesses, "guesses.")
+            break
+    
+    else:
+        print("Incorrect, try again.")
