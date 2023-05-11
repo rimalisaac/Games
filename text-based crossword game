@@ -1,0 +1,49 @@
+import sys
+
+class Crossword:
+    def __init__(self, question, answer):
+        self.question = question
+        self.answer = answer.upper()
+
+questions = [
+    Crossword("A programming language created by Guido van Rossum", "Python"),
+    Crossword("An object-oriented programming language created by James Gosling", "Java"),
+    Crossword("A version control system primarily used for source code management", "Git"),
+    Crossword("A markup language used for structuring content on the internet", "HTML"),
+    Crossword("A style sheet language used for describing the look and formatting of a document", "CSS"),
+    Crossword("A popular open-source relational database management system", "MySQL"),
+    Crossword("A general-purpose operating system based on the Linux kernel", "Ubuntu"),
+    Crossword("A powerful text editor often used for programming", "Vim"),
+    Crossword("A widely-used JavaScript library for handling events, animations, and AJAX", "jQuery"),
+    Crossword("A software development platform for building web applications and services", "Nodejs")
+]
+
+def play_game():
+    print("Welcome to the Crossword Game!")
+    print("Type 'quit' at any time to exit the game.")
+    print()
+
+    correct_answers = 0
+
+    for i, crossword in enumerate(questions):
+        print(f"Question {i + 1}: {crossword.question} ({len(crossword.answer)} letters)")
+
+        while True:
+            user_input = input("Your answer: ").upper()
+
+            if user_input == "QUIT":
+                print("Thanks for playing! Goodbye!")
+                sys.exit(0)
+            elif user_input == crossword.answer:
+                print("Correct!")
+                correct_answers += 1
+                break
+            else:
+                print("Incorrect. Try again or type 'quit' to exit the game.")
+
+        print()
+
+    print(f"Congratulations! You have answered all {correct_answers} questions correctly!")
+
+if __name__ == "__main__":
+    play_game()
