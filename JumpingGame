@@ -1,0 +1,57 @@
+import pygame
+import sys
+
+# Set up some constants
+WIDTH, HEIGHT = 800, 600
+PLAYER_SIZE = 50
+OBSTACLE_WIDTH = 20
+OBSTACLE_HEIGHT = 50
+PLAYER_Y = HEIGHT - PLAYER_SIZE - OBSTACLE_HEIGHT
+OBSTACLE_X = WIDTH
+
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+clock = pygame.time.Clock()
+
+def draw_rect(x, y, width, height, color):
+    pygame.draw.rect(screen, color, pygame.Rect(x, y, width, height))
+
+def game():
+    player_x = 100
+    obstacle_x = OBSTACLE_X
+    y_velocity = 0
+    game_over = False
+
+    while not game_over:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_SPACE]:
+            y_velocity = -1.2
+
+        screen.fill((0, 0, 0))
+        y_velocity += 0.05  # gravity
+        player_y = PLAYER_Y + y_velocity
+        obstacle_x -= 2
+
+        if obstacle_x < 0:
+            obstacle_x = OBSTACLE_X  # Reset obstacle
+
+        if player_y > PLAYER_Y:
+            player_y = PLAYER_Y
+            y_velocity = 0
+
+        if player_x < obstacle_x < player_x + PLAYER_SIZE and PLAYER_Y < player_y + PLAYER_SIZE < PLAYER_Y + OBSTACLE_HEIGHT:
+            game_over = True
+
+        draw_rect(player_x, player_y, PLAYER_SIZE, PLAYER_SIZE, (255, 0, 0))  # Draw the player
+        draw_rect(obstacle_x, HEIGHT - OBSTACLE_HEIGHT, OBSTACLE_WIDTH, OBSTACLE_HEIGHT, (0, 255, 0))  # Draw the obstacle
+
+        pygame.display.flip()
+        clock.tick(60)
+
+if __name__ == "__main__":
+    game()
