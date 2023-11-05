@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Spinning Triangle</title>
+  </head>
+  <body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+    
+    <script>
+      // Initialize scene, camera, and renderer
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      const renderer = new THREE.WebGLRenderer();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      // Create a triangle
+      const geometry = new THREE.Geometry();
+      geometry.vertices.push(new THREE.Vector3(0, 1, 0));
+      geometry.vertices.push(new THREE.Vector3(-1, -1, 0));
+      geometry.vertices.push(new THREE.Vector3(1, -1, 0));
+      geometry.faces.push(new THREE.Face3(0, 1, 2));
+      geometry.computeBoundingSphere();
+
+      const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+      const triangle = new THREE.Mesh(geometry, material);
+      scene.add(triangle);
+
+      // Position the camera
+      camera.position.z = 5;
+
+      // Function to animate the triangle
+      const animate = () => {
+        requestAnimationFrame(animate);
+        triangle.rotation.x += 0.01;
+        triangle.rotation.y += 0.01;
+        renderer.render(scene, camera);
+      };
+
+      animate();
+    </script>
+  </body>
+</html>
