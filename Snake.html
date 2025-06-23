@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Snake and Ladder</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .game-container {
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr); /* 10 columns for the board */
+            grid-template-rows: repeat(10, 1fr);   /* 10 rows for the board */
+            width: 600px; /* Fixed width for the board */
+            height: 600px; /* Fixed height for the board */
+            border: 5px solid #3b82f6;
+            border-radius: 10px;
+            overflow: hidden; /* Ensure content stays within borders */
+            position: relative; /* For player tokens and SVG overlay */
+        }
+        .board-cell {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #333;
+            border: 1px solid #cbd5e1;
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+            position: relative; /* For positioning numbers if needed */
+        }
+        .board-cell:nth-child(odd) {
+            background-color: #e0f2fe; /* Light blue */
+        }
+        .board-cell:nth-child(even) {
+            background-color: #bfdbfe; /* Slightly darker blue */
+        }
+        /* Style for cells on odd rows (zigzag pattern) */
+        .game-board .cell-row-odd .board-cell:nth-child(odd) {
+            background-color: #bfdbfe;
+        }
+        .game-board .cell-row-odd .board-cell:nth-child(even) {
+            background-color: #e0f2fe;
+        }
+
+        /* SVG overlay for snakes and ladders */
+        .board-overlay-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5; /* Below player tokens, above cells */
+            pointer-events: none; /* Allows clicks to pass through to cells if needed */
+        }
+
+        .player-token {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: white;
+            transition: all 0.5s ease-in-out; /* Smooth movement */
+            border: 2px solid rgba(255, 255, 255, 0.7);
+            z-index: 10; /* Above SVG lines */
+        }
+        .dice-button {
+            padding: 12px 25px;
+            background: linear-gradient(145deg, #4299e1, #3182ce);
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        .dice-button:hover {
+            background: linear-gradient(145deg, #3182ce, #2c5282);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+        .dice-button:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+        .modal-content input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            width: calc(100% - 20px);
+            font-size: 1rem;
+        }
+        .modal-content button {
+            padding: 10px 20px;
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+        .modal-content button:hover {
+            background-color: #3182ce;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1 class="text-4xl font-bold text-center text-blue-700 mb-6">Multiplayer Snake and Ladder</h1>
+
+        <!-- Game ID and User ID Display -->
+        <div class="flex flex-col md:flex-row justify-between items-center bg-gray-100 p-4 rounded-lg shadow-md">
+            <div class="mb-2 md:mb-0">
+                <span class="font-semibold text-gray-700">Game ID:</span> <span id="displayGameId" class="font-mono text-blue-600">Loading...</span>
+            </div>
+            <div>
+                <span class="font-semibold text-gray-700">Your User ID:</span> <span id="displayUserId" class="font-mono text-green-600">Loading...</span>
+            </div>
+        </div>
+
+        <div id="gameStartSection" class="flex flex-col md:flex-row justify-center items-center gap-4 bg-yellow-50 p-6 rounded-lg shadow-inner">
+            <input type="text" id="gameIdInput" placeholder="Enter Game ID to join" class="p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 w-full md:w-auto">
+            <button id="joinGameButton" class="dice-button w-full md:w-auto">Join Game</button>
+            <button id="createGameButton" class="dice-button w-full md:w-auto">Create New Game</button>
+        </div>
+
+        <div id="gameArea" class="hidden flex-col md:flex-row gap-6">
+            <!-- Game Board -->
+            <div id="board" class="game-board">
+                <!-- Cells will be generated by JavaScript -->
+                <!-- SVG overlay for snakes and ladders will be added here -->
+            </div>
+
+            <!-- Game Controls and Info -->
+            <div class="flex-1 flex flex-col gap-4 p-4 bg-gray-50 rounded-lg shadow-md">
+                <h2 class="text-2xl font-semibold text-blue-700">Game Status</h2>
+                <div id="playersInfo" class="flex flex-wrap gap-3 mb-4">
+                    <!-- Player info will be populated here -->
+                </div>
+
+                <div id="diceSection" class="flex flex-col items-center gap-4">
+                    <p class="text-xl font-medium text-gray-800">Dice Roll: <span id="diceValue" class="text-blue-600 font-bold text-3xl">0</span></p>
+                    <button id="rollDiceButton" class="dice-button">Roll Dice</button>
+                </div>
+
+                <div id="gameMessage" class="text-center text-lg font-semibold text-purple-700 p-3 bg-purple-100 rounded-md mt-4">Waiting for players...</div>
+
+                <div id="winnerMessage" class="hidden text-center text-2xl font-bold text-green-700 p-4 bg-green-100 rounded-md mt-4 animate-bounce"></div>
+
+                <button id="resetGameButton" class="dice-button bg-red-500 hover:bg-red-700 hidden mt-4">Reset Game</button>
+            </div>
+        </div>
+
+        <!-- Custom Modal for Messages -->
+        <div id="messageModal" class="modal hidden">
+            <div class="modal-content">
+                <h3 id="modalMessage" class="text-xl font-semibold mb-4"></h3>
+                <button id="modalCloseButton">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot, collection, query, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Firebase variables
+        let app;
+        let db;
+        let auth;
+        let userId = ''; // Will be set after authentication
+        let currentAuthToken = ''; // To store the initial auth token
+
+        // Game state variables
+        let gameRef; // Reference to the current game document in Firestore
+        let currentPlayerId = null; // ID of the current player in this browser instance
+        let unsubscribeSnapshot = null; // To store the unsubscribe function for the Firestore snapshot listener
+
+        // Constants
+        const BOARD_SIZE = 10; // 10x10 board
+        const TOTAL_SQUARES = BOARD_SIZE * BOARD_SIZE;
+        const CELL_SIZE_PX = 60; // Pixels per cell
+
+        // Snakes and Ladders definition (start -> end)
+        // These are 0-indexed positions (0 to 99)
+        const SNAKES = {
+            98: 78, 95: 75, 93: 73, 87: 24, 64: 60, 62: 19, 54: 34, 49: 11, 46: 25, 16: 6
+        };
+        const LADDERS = {
+            1: 38, 4: 14, 9: 31, 21: 42, 28: 84, 36: 44, 51: 67, 71: 91, 80: 100 // 100 for win
+        };
+
+        // UI Elements
+        const displayGameIdEl = document.getElementById('displayGameId');
+        const displayUserIdEl = document.getElementById('displayUserId');
+        const gameIdInputEl = document.getElementById('gameIdInput');
+        const joinGameButtonEl = document.getElementById('joinGameButton');
+        const createGameButtonEl = document.getElementById('createGameButton');
+        const gameStartSectionEl = document.getElementById('gameStartSection');
+        const gameAreaEl = document.getElementById('gameArea');
+        const boardEl = document.getElementById('board');
+        const playersInfoEl = document.getElementById('playersInfo');
+        const diceValueEl = document.getElementById('diceValue');
+        const rollDiceButtonEl = document.getElementById('rollDiceButton');
+        const gameMessageEl = document.getElementById('gameMessage');
+        const winnerMessageEl = document.getElementById('winnerMessage');
+        const resetGameButtonEl = document.getElementById('resetGameButton');
+        const messageModal = document.getElementById('messageModal');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalCloseButton = document.getElementById('modalCloseButton');
+
+        // Player colors
+        const PLAYER_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f97316', '#a855f7', '#ec4899']; // Red, Blue, Green, Orange, Purple, Pink
+
+
+        /**
+         * Initializes Firebase and sets up authentication.
+         * Attempts to sign in with a custom token if available, otherwise signs in anonymously.
+         * Sets up an auth state observer to update `userId`.
+         */
+        async function initializeFirebase() {
+            try {
+                // Initialize Firebase app using __firebase_config
+                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+                if (Object.keys(firebaseConfig).length === 0) {
+                    console.error("Firebase config not found. Please ensure __firebase_config is defined.");
+                    return;
+                }
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // Get the initial auth token
+                currentAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+                // Sign in logic
+                if (currentAuthToken) {
+                    await signInWithCustomToken(auth, currentAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                // Listen for auth state changes
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        displayUserIdEl.textContent = userId;
+                        console.log("Firebase initialized and user authenticated:", userId);
+                    } else {
+                        userId = crypto.randomUUID(); // Fallback for unauthenticated or anonymous users
+                        displayUserIdEl.textContent = userId + " (Anon)";
+                        console.log("Firebase initialized, but no authenticated user. Using anonymous ID:", userId);
+                    }
+                });
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                showMessageModal("Error initializing Firebase: " + error.message);
+            }
+        }
+
+        /**
+         * Generates a unique game ID.
+         * @returns {string} A unique game ID.
+         */
+        function generateGameId() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+
+        /**
+         * Creates a new game in Firestore.
+         */
+        async function createNewGame() {
+            const newGameId = generateGameId();
+            displayGameIdEl.textContent = newGameId;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const gamePath = `/artifacts/${appId}/public/data/snakeAndLadderGames/${newGameId}`;
+            gameRef = doc(db, gamePath);
+
+            const initialGameState = {
+                players: [],
+                currentPlayerIndex: 0,
+                diceValue: 0,
+                gameStarted: false,
+                gameFinished: false,
+                message: "Game created. Waiting for players to join...",
+                turnCount: 0,
+                createdAt: Date.now()
+            };
+
+            try {
+                await setDoc(gameRef, initialGameState);
+                console.log("New game created with ID:", newGameId);
+                showMessageModal(`Game created! Share this ID with your friends: ${newGameId}`);
+                setupGameListener(newGameId);
+            } catch (error) {
+                console.error("Error creating new game:", error);
+                showMessageModal("Error creating new game: " + error.message);
+            }
+        }
+
+        /**
+         * Joins an existing game.
+         */
+        async function joinGame() {
+            const gameId = gameIdInputEl.value.trim();
+            if (!gameId) {
+                showMessageModal("Please enter a Game ID.");
+                return;
+            }
+
+            displayGameIdEl.textContent = gameId;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const gamePath = `/artifacts/${appId}/public/data/snakeAndLadderGames/${gameId}`;
+            gameRef = doc(db, gamePath);
+
+            try {
+                const gameSnap = await getDoc(gameRef);
+                if (!gameSnap.exists()) {
+                    showMessageModal("Game not found. Please check the ID or create a new game.");
+                    gameIdInputEl.value = ''; // Clear invalid ID
+                    return;
+                }
+
+                const gameData = gameSnap.data();
+                if (gameData.players.length >= PLAYER_COLORS.length) {
+                    showMessageModal("This game is full. Please try another game or create a new one.");
+                    return;
+                }
+
+                // Add current user as a player if not already in the game
+                const isPlayerAlreadyInGame = gameData.players.some(p => p.id === userId);
+                if (!isPlayerAlreadyInGame) {
+                    const newPlayer = {
+                        id: userId,
+                        name: `Player ${gameData.players.length + 1}`,
+                        position: 0,
+                        color: PLAYER_COLORS[gameData.players.length],
+                        hasRolled: false // To prevent double rolls
+                    };
+                    await updateDoc(gameRef, {
+                        players: arrayUnion(newPlayer),
+                        message: `Player ${gameData.players.length + 1} (${userId}) joined!`
+                    });
+                    currentPlayerId = userId; // Set current player for this browser
+                    console.log("Joined game:", gameId, "as", userId);
+                } else {
+                    currentPlayerId = userId;
+                    showMessageModal("You have re-joined the game.");
+                    console.log("Re-joined game:", gameId, "as", userId);
+                }
+                setupGameListener(gameId);
+            } catch (error) {
+                console.error("Error joining game:", error);
+                showMessageModal("Error joining game: " + error.message);
+            }
+        }
+
+        /**
+         * Sets up a real-time listener for the game state in Firestore.
+         * @param {string} gameId - The ID of the game to listen to.
+         */
+        function setupGameListener(gameId) {
+            // Unsubscribe from previous listener if any
+            if (unsubscribeSnapshot) {
+                unsubscribeSnapshot();
+            }
+
+            gameStartSectionEl.classList.add('hidden');
+            gameAreaEl.classList.remove('hidden');
+
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const gamePath = `/artifacts/${appId}/public/data/snakeAndLadderGames/${gameId}`;
+            gameRef = doc(db, gamePath);
+
+            unsubscribeSnapshot = onSnapshot(gameRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const gameState = docSnap.data();
+                    renderGame(gameState);
+                } else {
+                    console.log("Game no longer exists!");
+                    showMessageModal("The game you were in has ended or was deleted.");
+                    resetUIForNewGame();
+                }
+            }, (error) => {
+                console.error("Error listening to game state:", error);
+                showMessageModal("Error synchronizing game: " + error.message);
+            });
+        }
+
+        /**
+         * Resets the UI to allow joining/creating a new game.
+         */
+        function resetUIForNewGame() {
+            if (unsubscribeSnapshot) {
+                unsubscribeSnapshot();
+                unsubscribeSnapshot = null;
+            }
+            gameAreaEl.classList.add('hidden');
+            gameStartSectionEl.classList.remove('hidden');
+            displayGameIdEl.textContent = 'Loading...';
+            gameIdInputEl.value = '';
+            boardEl.innerHTML = ''; // Clear board
+            playersInfoEl.innerHTML = ''; // Clear players
+            diceValueEl.textContent = '0';
+            gameMessageEl.textContent = 'Waiting for players...';
+            winnerMessageEl.classList.add('hidden');
+            resetGameButtonEl.classList.add('hidden');
+            rollDiceButtonEl.disabled = false;
+        }
+
+        /**
+         * Renders the game state to the UI.
+         * @param {object} gameState - The current game state from Firestore.
+         */
+        function renderGame(gameState) {
+            console.log("Rendering game state:", gameState);
+
+            // Update Game ID display
+            displayGameIdEl.textContent = gameRef.id;
+
+            // Generate board if not already generated and draw snakes/ladders
+            if (boardEl.children.length === 0 || !document.getElementById('board-svg-overlay')) {
+                createBoard();
+                drawSnakesAndLadders();
+            }
+
+            // Render players
+            playersInfoEl.innerHTML = '';
+            gameState.players.forEach((player, index) => {
+                const isCurrentTurn = index === gameState.currentPlayerIndex;
+                const playerDiv = document.createElement('div');
+                playerDiv.className = `flex items-center gap-2 p-2 rounded-lg ${isCurrentTurn ? 'bg-blue-200 shadow-md' : 'bg-gray-100'} transition-all duration-200`;
+                playerDiv.innerHTML = `
+                    <div class="w-6 h-6 rounded-full" style="background-color: ${player.color};"></div>
+                    <span class="font-medium ${isCurrentTurn ? 'text-blue-800' : 'text-gray-700'}">${player.name}</span>
+                    <span class="text-sm text-gray-500">(${player.id.substring(0, 6)}...)</span>
+                    <span class="font-bold text-lg ml-auto">Pos: ${player.position}</span>
+                `;
+                playersInfoEl.appendChild(playerDiv);
+
+                // Update player token positions
+                const playerToken = document.getElementById(`player-token-${player.id}`);
+                if (!playerToken) {
+                    createPlayerToken(player);
+                } else {
+                    movePlayerToken(player.id, player.position);
+                }
+            });
+
+            // Update dice value
+            diceValueEl.textContent = gameState.diceValue;
+
+            // Update game message
+            gameMessageEl.textContent = gameState.message;
+
+            // Handle turn button state
+            const isMyTurn = gameState.players[gameState.currentPlayerIndex]?.id === userId;
+            const hasAlreadyRolled = gameState.players[gameState.currentPlayerIndex]?.hasRolled || false;
+
+            if (gameState.gameFinished) {
+                rollDiceButtonEl.disabled = true;
+                winnerMessageEl.textContent = `${gameState.message}`;
+                winnerMessageEl.classList.remove('hidden');
+                resetGameButtonEl.classList.remove('hidden');
+            } else if (gameState.gameStarted && isMyTurn && !hasAlreadyRolled) {
+                rollDiceButtonEl.disabled = false;
+            } else {
+                rollDiceButtonEl.disabled = true;
+            }
+
+            // Ensure game is marked as started if there are at least 2 players
+            if (gameState.players.length >= 2 && !gameState.gameStarted && !gameState.gameFinished) {
+                updateDoc(gameRef, { gameStarted: true, message: `Game started! It's ${gameState.players[gameState.currentPlayerIndex].name}'s turn.` });
+            }
+        }
+
+        /**
+         * Helper function to get pixel coordinates (x, y) for the center of a cell
+         * given its 0-indexed board position (0-99).
+         * @param {number} boardIndex - The 0-indexed position on the board.
+         * @returns {{x: number, y: number}} Pixel coordinates.
+         */
+        function getPixelCoordinates(boardIndex) {
+            const oneIndexedPos = boardIndex + 1;
+            let visualRow, visualCol;
+
+            // Determine the row number starting from the bottom (0-indexed from bottom)
+            const rowFromBottom = Math.floor((oneIndexedPos - 1) / BOARD_SIZE);
+
+            if (rowFromBottom % 2 === 0) { // Even rows (0, 2, ...) go left-to-right from bottom
+                visualRow = BOARD_SIZE - 1 - rowFromBottom; // Convert to visual row from top (0-9)
+                visualCol = (oneIndexedPos - 1) % BOARD_SIZE;
+            } else { // Odd rows (1, 3, ...) go right-to-left from bottom
+                visualRow = BOARD_SIZE - 1 - rowFromBottom; // Convert to visual row from top (0-9)
+                visualCol = BOARD_SIZE - 1 - ((oneIndexedPos - 1) % BOARD_SIZE);
+            }
+
+            const x = visualCol * CELL_SIZE_PX + CELL_SIZE_PX / 2;
+            const y = visualRow * CELL_SIZE_PX + CELL_SIZE_PX / 2;
+            return { x, y };
+        }
+
+
+        /**
+         * Creates the Snake and Ladder board cells and the SVG overlay.
+         */
+        function createBoard() {
+            boardEl.innerHTML = ''; // Clear any existing cells
+
+            // Create board cells
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const cellDiv = document.createElement('div');
+                    cellDiv.className = `board-cell`;
+                    const boardIndex = getBoardIndex(r, c); // This is the 0-indexed internal position
+                    cellDiv.id = `cell-${boardIndex}`; // ID for unique reference
+
+                    // Add number to cell (1-indexed for display)
+                    cellDiv.textContent = boardIndex + 1;
+                    boardEl.appendChild(cellDiv);
+                }
+            }
+
+            // Create SVG overlay for snakes and ladders
+            const svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svgOverlay.id = 'board-svg-overlay';
+            svgOverlay.classList.add('board-overlay-svg');
+            svgOverlay.setAttribute('viewBox', `0 0 ${BOARD_SIZE * CELL_SIZE_PX} ${BOARD_SIZE * CELL_SIZE_PX}`);
+            boardEl.appendChild(svgOverlay);
+        }
+
+        /**
+         * Draws the snakes and ladders as SVG lines on the board overlay.
+         */
+        function drawSnakesAndLadders() {
+            const svgOverlay = document.getElementById('board-svg-overlay');
+            if (!svgOverlay) return;
+
+            // Clear previous drawings
+            svgOverlay.innerHTML = '';
+
+            // Draw Ladders
+            for (const startCell in LADDERS) {
+                if (LADDERS.hasOwnProperty(startCell)) {
+                    const endCell = LADDERS[startCell];
+                    // Convert 1-indexed (from map) to 0-indexed for getPixelCoordinates
+                    const startCoords = getPixelCoordinates(parseInt(startCell) - 1);
+                    const endCoords = getPixelCoordinates(endCell - 1); // Subtract 1 for win cell 100 too
+
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', startCoords.x);
+                    line.setAttribute('y1', startCoords.y);
+                    line.setAttribute('x2', endCoords.x);
+                    line.setAttribute('y2', endCoords.y);
+                    line.setAttribute('stroke', '#16a34a'); // Green for ladders
+                    line.setAttribute('stroke-width', '4');
+                    line.setAttribute('stroke-linecap', 'round');
+                    svgOverlay.appendChild(line);
+                }
+            }
+
+            // Draw Snakes
+            for (const startCell in SNAKES) {
+                if (SNAKES.hasOwnProperty(startCell)) {
+                    const endCell = SNAKES[startCell];
+                    // Convert 1-indexed (from map) to 0-indexed for getPixelCoordinates
+                    const startCoords = getPixelCoordinates(parseInt(startCell) - 1);
+                    const endCoords = getPixelCoordinates(endCell - 1);
+
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', startCoords.x);
+                    line.setAttribute('y1', startCoords.y);
+                    line.setAttribute('x2', endCoords.x);
+                    line.setAttribute('y2', endCoords.y);
+                    line.setAttribute('stroke', '#dc2626'); // Red for snakes
+                    line.setAttribute('stroke-width', '4');
+                    line.setAttribute('stroke-linecap', 'round');
+                    svgOverlay.appendChild(line);
+                }
+            }
+        }
+
+        /**
+         * Helper function to get the 0-indexed board index from a visual grid row and column.
+         * Used internally for `createBoard`.
+         * @param {number} row - Visual row (0-indexed from top).
+         * @param {number} col - Visual column (0-indexed from left).
+         * @returns {number} The 0-indexed board position.
+         */
+        const getBoardIndex = (row, col) => {
+            const actualRowFromBottom = BOARD_SIZE - 1 - row; // Convert visual row (top-down) to row indexed from bottom
+            if (actualRowFromBottom % 2 === 0) { // Even rows (0, 2, ...) from bottom go left to right
+                return actualRowFromBottom * BOARD_SIZE + col;
+            } else { // Odd rows (1, 3, ...) from bottom go right to left
+                return actualRowFromBottom * BOARD_SIZE + (BOARD_SIZE - 1 - col);
+            }
+        };
+
+
+        /**
+         * Creates a player token element and adds it to the board.
+         * @param {object} player - The player object.
+         */
+        function createPlayerToken(player) {
+            const tokenDiv = document.createElement('div');
+            tokenDiv.id = `player-token-${player.id}`;
+            tokenDiv.className = 'player-token';
+            tokenDiv.style.backgroundColor = player.color;
+            tokenDiv.textContent = player.name.substring(0, 1); // First letter of name
+            boardEl.appendChild(tokenDiv);
+            movePlayerToken(player.id, player.position); // Initial placement
+        }
+
+        /**
+         * Moves a player token to a new position on the board.
+         * @param {string} playerId - The ID of the player.
+         * @param {number} newPosition - The new 0-indexed position (0-99).
+         */
+        function movePlayerToken(playerId, newPosition) {
+            const token = document.getElementById(`player-token-${playerId}`);
+            if (!token) return;
+
+            // Cap position at max square
+            if (newPosition >= TOTAL_SQUARES) newPosition = TOTAL_SQUARES - 1;
+            if (newPosition < 0) newPosition = 0;
+
+            const { x, y } = getPixelCoordinates(newPosition);
+
+            // Adjust for visual offset within the cell if multiple players are on the same square
+            // This still relies on other tokens' current positions. A more robust solution
+            // would involve knowing all player positions from the gameState and calculating offsets.
+            // For now, this provides a basic offset to prevent complete overlap.
+            const playersOnSameSquare = Array.from(boardEl.children).filter(child =>
+                child.classList.contains('player-token') &&
+                child.id !== token.id &&
+                Math.abs(parseFloat(child.style.left) - (x - 15)) < 5 && // Check if x coords are very close
+                Math.abs(parseFloat(child.style.top) - (y - 15)) < 5    // Check if y coords are very close
+            ).length;
+
+            const offsetX = (playersOnSameSquare % 3) * (CELL_SIZE_PX / 6); // Small offset
+            const offsetY = Math.floor(playersOnSameSquare / 3) * (CELL_SIZE_PX / 6);
+
+            token.style.left = `${x - (token.offsetWidth / 2) + offsetX}px`; // Center token + offset
+            token.style.top = `${y - (token.offsetHeight / 2) + offsetY}px`; // Center token + offset
+        }
+
+
+        /**
+         * Rolls the dice and updates the game state in Firestore.
+         */
+        async function rollDice() {
+            if (!gameRef) {
+                showMessageModal("No game joined. Please join or create a game first.");
+                return;
+            }
+
+            try {
+                const gameSnap = await getDoc(gameRef);
+                if (!gameSnap.exists()) {
+                    showMessageModal("Game no longer exists!");
+                    resetUIForNewGame();
+                    return;
+                }
+                const gameState = gameSnap.data();
+
+                if (!gameState.gameStarted) {
+                    showMessageModal("Waiting for at least 2 players to start the game.");
+                    return;
+                }
+
+                const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+
+                if (!currentPlayer || currentPlayer.id !== userId) {
+                    showMessageModal("It's not your turn!");
+                    return;
+                }
+
+                if (currentPlayer.hasRolled) {
+                    showMessageModal("You have already rolled this turn. Please wait for the next turn.");
+                    return;
+                }
+
+                const roll = Math.floor(Math.random() * 6) + 1;
+                let newPosition = currentPlayer.position + roll;
+                let message = `${currentPlayer.name} rolled a ${roll}.`;
+
+                // Handle win condition
+                if (newPosition >= TOTAL_SQUARES) {
+                    newPosition = TOTAL_SQUARES; // Land exactly on 100 (which is 99 in 0-indexed)
+                    message = `${currentPlayer.name} rolled a ${roll} and won the game!`;
+                    await updateDoc(gameRef, {
+                        diceValue: roll,
+                        message: message,
+                        gameFinished: true,
+                        // Update position using specific field path for player in array
+                        [`players.${gameState.currentPlayerIndex}.position`]: TOTAL_SQUARES - 1, // Cap at 99 internally for 100th square
+                        [`players.${gameState.currentPlayerIndex}.hasRolled`]: true
+                    });
+                    return;
+                }
+
+                // Check for ladders (1-indexed for logic mapping)
+                const checkPositionOneIndexed = newPosition + 1; // Convert to 1-indexed for S/L map
+                if (LADDERS.hasOwnProperty(checkPositionOneIndexed)) {
+                    const ladderEnd = LADDERS[checkPositionOneIndexed];
+                    message += ` Found a ladder! Climbing to ${ladderEnd}.`;
+                    newPosition = ladderEnd - 1; // Convert back to 0-indexed for internal use
+                }
+                // Check for snakes (1-indexed for logic mapping)
+                else if (SNAKES.hasOwnProperty(checkPositionOneIndexed)) {
+                    const snakeEnd = SNAKES[checkPositionOneIndexed];
+                    message += ` Oh no, a snake! Sliding down to ${snakeEnd}.`;
+                    newPosition = snakeEnd - 1; // Convert back to 0-indexed for internal use
+                }
+
+                // Prepare for next turn
+                let nextPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+                let nextPlayerMessage = `It's ${gameState.players[nextPlayerIndex].name}'s turn.`;
+
+                // Update Firestore
+                const updatedPlayers = gameState.players.map((player, idx) => {
+                    if (idx === gameState.currentPlayerIndex) {
+                        return { ...player, position: newPosition, hasRolled: true };
+                    } else {
+                        return { ...player, hasRolled: false }; // Reset hasRolled for others
+                    }
+                });
+
+                await updateDoc(gameRef, {
+                    diceValue: roll,
+                    players: updatedPlayers,
+                    currentPlayerIndex: nextPlayerIndex,
+                    message: message + " " + nextPlayerMessage,
+                    turnCount: gameState.turnCount + 1
+                });
+            } catch (error) {
+                console.error("Error rolling dice:", error);
+                showMessageModal("Error rolling dice: " + error.message);
+            }
+        }
+
+        /**
+         * Resets the game state in Firestore.
+         */
+        async function resetGame() {
+            if (!gameRef) {
+                showMessageModal("No game to reset.");
+                return;
+            }
+
+            try {
+                const gameSnap = await getDoc(gameRef);
+                if (!gameSnap.exists()) {
+                    showMessageModal("Game no longer exists!");
+                    resetUIForNewGame();
+                    return;
+                }
+                const gameState = gameSnap.data();
+
+                const resetPlayers = gameState.players.map(player => ({
+                    ...player,
+                    position: 0,
+                    hasRolled: false
+                }));
+
+                await updateDoc(gameRef, {
+                    players: resetPlayers,
+                    currentPlayerIndex: 0,
+                    diceValue: 0,
+                    gameStarted: true, // Remains true if there are 2+ players
+                    gameFinished: false,
+                    message: "Game reset! Starting a new round.",
+                    turnCount: 0
+                });
+                showMessageModal("Game has been reset. Good luck!");
+            } catch (error) {
+                console.error("Error resetting game:", error);
+                showMessageModal("Error resetting game: " + error.message);
+            }
+        }
+
+        /**
+         * Displays a custom modal with a message.
+         * @param {string} message - The message to display.
+         */
+        function showMessageModal(message) {
+            modalMessage.textContent = message;
+            messageModal.classList.remove('hidden');
+        }
+
+        /**
+         * Hides the custom modal.
+         */
+        function hideMessageModal() {
+            messageModal.classList.add('hidden');
+        }
+
+        // Event Listeners
+        window.onload = async () => {
+            await initializeFirebase();
+            // Initial board creation and drawing of snakes/ladders
+            createBoard();
+            drawSnakesAndLadders();
+        };
+
+        createGameButtonEl.addEventListener('click', createNewGame);
+        joinGameButtonEl.addEventListener('click', joinGame);
+        rollDiceButtonEl.addEventListener('click', rollDice);
+        resetGameButtonEl.addEventListener('click', resetGame);
+        modalCloseButton.addEventListener('click', hideMessageModal);
+
+    </script>
+</body>
+</html>
